@@ -63,6 +63,32 @@ enum PaymentMethod {
   HYDRA_WALLET
 }
 
+enum WalletTransactionType {
+  CREDIT
+  DEBIT
+  HOLD
+  RELEASE
+  REFUND
+  COMMISSION
+  WITHDRAWAL
+  ADJUSTMENT
+}
+
+enum FinancialStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REVERSED
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+}
+
 model User {
   id              String           @id @default(cuid())
   email           String           @unique
@@ -79,6 +105,7 @@ model User {
   drivingRequests StockRequest[]   @relation("AssignedDriver")
   reviewsWritten  Review[]         @relation("ReviewAuthor")
   reviewsReceived Review[]         @relation("ReviewSubject")
+  wallet          Wallet?
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 }
@@ -285,4 +312,60 @@ model Expense {
   amountCents Int
   reference   String?
   createdAt   DateTime @default(now())
+}
+
+model Wallet {
+  id           String              @id @default(cuid())
+  user         User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  userId       String              @unique
+  currency     String              @default("ZAR")
+  transactions WalletTransaction[]
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+}
+
+model WalletTransaction {
+  id                 String                @id @default(cuid())
+  wallet             Wallet                @relation(fields: [walletId], references: [id], onDelete: Restrict)
+  walletId           String
+  type               WalletTransactionType
+  amountCents        Int
+  currency           String                @default("ZAR")
+  reference          String                @unique
+  status             FinancialStatus       @default(PENDING)
+  relatedEntityType  String?
+  relatedEntityId    String?
+  reversalOfId       String?
+  commissionSnapshot String?
+  createdAt          DateTime              @default(now())
+
+  @@index([walletId, createdAt])
+}
+
+model PaymentRecord {
+  id                String        @id @default(cuid())
+  provider          String
+  providerReference String?       @unique
+  idempotencyKey    String        @unique
+  amountCents       Int
+  currency          String        @default("ZAR")
+  status            PaymentStatus @default(INITIATED)
+  relatedEntityType String?
+  relatedEntityId   String?
+  metadata          String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model CommissionRule {
+  id                    String   @id @default(cuid())
+  service               String
+  commissionBasisPoints Int
+  paymentFeeCents       Int      @default(0)
+  vatBasisPoints        Int      @default(1500)
+  active                Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@unique([service, active])
 }
