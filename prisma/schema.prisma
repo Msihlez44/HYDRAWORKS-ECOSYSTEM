@@ -104,6 +104,43 @@ enum ServiceJobStatus {
   DISPUTED
 }
 
+enum EmploymentType {
+  PERMANENT
+  TEMPORARY
+  CONTRACT
+  CASUAL
+  DAILY
+  FREELANCE
+  INTERNSHIP
+  LEARNERSHIP
+}
+
+enum JobStatus {
+  DRAFT
+  OPEN
+  FILLED
+  CLOSED
+  CANCELLED
+}
+
+enum ApplicationStatus {
+  APPLIED
+  SHORTLISTED
+  SELECTED
+  ACCEPTED
+  DECLINED
+  WITHDRAWN
+}
+
+enum AssignmentStatus {
+  PENDING_ACCEPTANCE
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
 model User {
   id                     String           @id @default(cuid())
   email                  String           @unique
@@ -125,6 +162,8 @@ model User {
   serviceRequests        ServiceRequest[] @relation("ServiceCustomer")
   serviceReviewsWritten  ServiceReview[]  @relation("ServiceReviewAuthor")
   serviceReviewsReceived ServiceReview[]  @relation("ServiceReviewSubject")
+  workerProfile          WorkerProfile?
+  jobApplications        JobApplication[]
   createdAt              DateTime         @default(now())
   updatedAt              DateTime         @updatedAt
 }
@@ -149,6 +188,7 @@ model Business {
   products           Product[]
   sales              Sale[]
   expenses           Expense[]
+  jobPosts           JobPost[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 }
@@ -480,4 +520,93 @@ model ServiceReview {
   createdAt DateTime       @default(now())
 
   @@unique([requestId, authorId])
+}
+
+model WorkerProfile {
+  id                   String             @id @default(cuid())
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String             @unique
+  location             String
+  latitude             Float?
+  longitude            Float?
+  skills               String
+  experienceYears      Int
+  qualifications       String?
+  cvUrl                String?
+  certificateRefs      String?
+  driverLicence        String?
+  availability         String
+  rateExpectationCents Int?
+  verificationStatus   VerificationStatus @default(PENDING)
+  assignments          WorkAssignment[]
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+}
+
+model JobPost {
+  id             String           @id @default(cuid())
+  business       Business         @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId     String
+  type           EmploymentType
+  title          String
+  description    String
+  requiredSkills String
+  location       String
+  latitude       Float?
+  longitude      Float?
+  numberRequired Int
+  rateCents      Int
+  rateUnit       String
+  startsAt       DateTime
+  endsAt         DateTime?
+  workingHours   String
+  requirements   String?
+  status         JobStatus        @default(OPEN)
+  applications   JobApplication[]
+  assignments    WorkAssignment[]
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+}
+
+model JobApplication {
+  id         String            @id @default(cuid())
+  job        JobPost           @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId      String
+  worker     User              @relation(fields: [workerId], references: [id], onDelete: Cascade)
+  workerId   String
+  status     ApplicationStatus @default(APPLIED)
+  matchScore Int
+  coverNote  String?
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+
+  @@unique([jobId, workerId])
+  @@index([jobId, matchScore])
+}
+
+model WorkAssignment {
+  id                   String           @id @default(cuid())
+  job                  JobPost          @relation(fields: [jobId], references: [id], onDelete: Restrict)
+  jobId                String
+  worker               WorkerProfile    @relation(fields: [workerId], references: [id], onDelete: Restrict)
+  workerId             String
+  status               AssignmentStatus @default(PENDING_ACCEPTANCE)
+  expectedPaymentCents Int?
+  timeEntries          WorkTimeEntry[]
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  @@unique([jobId, workerId])
+}
+
+model WorkTimeEntry {
+  id           String         @id @default(cuid())
+  assignment   WorkAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  assignmentId String
+  checkedInAt  DateTime
+  checkedOutAt DateTime?
+  latitude     Float?
+  longitude    Float?
+  minutes      Int?
+  createdAt    DateTime       @default(now())
 }
