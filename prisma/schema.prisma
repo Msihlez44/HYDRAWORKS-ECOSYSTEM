@@ -330,6 +330,16 @@ model UserRole {
 model Business {
   id                   String                  @id @default(cuid())
   name                 String
+  storefrontSlug       String?                 @unique
+  storefrontPublished  Boolean                 @default(false)
+  logoUrl              String?
+  publicDescription    String?
+  openingHours         String?
+  serviceArea          String?
+  publicPhone          String?
+  publicEmail          String?
+  whatsappNumber       String?
+  orderUrl             String?
   registrationNumber   String?                 @unique
   address              String?
   province             String?
@@ -472,6 +482,9 @@ model Product {
   vatApplicable     Boolean             @default(false)
   reorderLevel      Int                 @default(0)
   supplier          String?
+  storefrontVisible Boolean             @default(false)
+  publicDescription String?
+  imageUrl          String?
   movements         InventoryMovement[]
   saleItems         SaleItem[]
   createdAt         DateTime            @default(now())
