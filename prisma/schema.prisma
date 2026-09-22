@@ -1,0 +1,93 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  BUSINESS_OWNER
+  DRIVER
+  SERVICE_PROVIDER
+  WORKER
+  SUPPLIER
+  STAFF
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING
+}
+
+model User {
+  id           String           @id @default(cuid())
+  email        String           @unique
+  phone        String           @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  status       AccountStatus    @default(ACTIVE)
+  roles        UserRole[]
+  businesses   BusinessMember[]
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  role   Role
+
+  @@unique([userId, role])
+}
+
+model Business {
+  id                 String           @id @default(cuid())
+  name               String
+  registrationNumber String?          @unique
+  address            String?
+  verificationStatus String           @default("PENDING")
+  members            BusinessMember[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+}
+
+model BusinessMember {
+  id         String   @id @default(cuid())
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  role       String   @default("OWNER")
+
+  @@unique([businessId, userId])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  metadata  String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  userId    String?
+  createdAt DateTime @default(now())
+}
