@@ -226,6 +226,32 @@ enum DeliveryAttemptStatus {
   SKIPPED
 }
 
+enum VerificationType {
+  PERSON
+  BUSINESS
+  DRIVER
+  SERVICE_PROVIDER
+  SUPPLIER
+  WORKER
+}
+
+enum VerificationCaseStatus {
+  PENDING
+  UNDER_REVIEW
+  MORE_INFORMATION_REQUIRED
+  APPROVED
+  REJECTED
+}
+
+enum VerificationDecision {
+  SUBMITTED
+  ASSIGNED
+  APPROVED
+  REJECTED
+  REQUEST_MORE_INFORMATION
+  RESUBMITTED
+}
+
 model User {
   id                      String                    @id @default(cuid())
   email                   String                    @unique
@@ -253,6 +279,9 @@ model User {
   messagesSent            Message[]
   notifications           Notification[]
   notificationPreferences NotificationPreference[]
+  verificationCases       VerificationCase[]        @relation("VerificationApplicant")
+  verificationReviews     VerificationCase[]        @relation("VerificationReviewer")
+  verificationActions     VerificationAction[]      @relation("VerificationActor")
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
 }
@@ -1020,4 +1049,50 @@ model NotificationDelivery {
   updatedAt      DateTime              @updatedAt
 
   @@unique([notificationId, channel])
+}
+
+model VerificationCase {
+  id          String                 @id @default(cuid())
+  type        VerificationType
+  targetId    String
+  applicant   User                   @relation("VerificationApplicant", fields: [applicantId], references: [id], onDelete: Restrict)
+  applicantId String
+  status      VerificationCaseStatus @default(PENDING)
+  reviewer    User?                  @relation("VerificationReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  reviewerId  String?
+  submittedAt DateTime               @default(now())
+  reviewedAt  DateTime?
+  documents   VerificationDocument[]
+  actions     VerificationAction[]
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+
+  @@index([type, status, submittedAt])
+  @@index([targetId])
+}
+
+model VerificationDocument {
+  id           String           @id @default(cuid())
+  case         VerificationCase @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId       String
+  documentType String
+  storageRef   String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  checksum     String?
+  createdAt    DateTime         @default(now())
+}
+
+model VerificationAction {
+  id        String               @id @default(cuid())
+  case      VerificationCase     @relation(fields: [caseId], references: [id], onDelete: Cascade)
+  caseId    String
+  actor     User                 @relation("VerificationActor", fields: [actorId], references: [id], onDelete: Restrict)
+  actorId   String
+  decision  VerificationDecision
+  reason    String?
+  createdAt DateTime             @default(now())
+
+  @@index([caseId, createdAt])
 }
