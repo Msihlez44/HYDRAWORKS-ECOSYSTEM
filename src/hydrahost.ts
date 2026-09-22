@@ -1,0 +1,8 @@
+import{z}from'zod';
+export const hostingOrderSchema=z.object({businessId:z.string(),planId:z.string(),billingCycle:z.enum(['MONTHLY','ANNUAL']),domainName:z.string().toLowerCase().regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,}$/).optional(),registerDomain:z.boolean().default(false)});
+export const mailboxSchema=z.object({localPart:z.string().toLowerCase().regex(/^[a-z0-9._-]{1,64}$/),displayName:z.string().max(120).optional()});
+export const serviceRequestSchema=z.object({businessId:z.string(),serviceType:z.enum(['DOMAIN','WEB_HOSTING','BUSINESS_EMAIL','SSL','WEBSITE_DESIGN','WEBSITE_MAINTENANCE','SERVER_SERVICES']),domainName:z.string().max(253).optional(),requirements:z.string().max(3000).optional()});
+export interface HostingProvider{readonly name:string;checkDomain(domain:string):Promise<{status:'UNKNOWN'|'AVAILABLE'|'UNAVAILABLE';authoritative:boolean}>;provision(input:{operation:string;payload:unknown}):Promise<{status:'PENDING_ADMIN'|'QUEUED';providerReference?:string}>}
+export class ManualHostingProvider implements HostingProvider{readonly name='manual';async checkDomain(_domain:string){return{status:'UNKNOWN' as const,authoritative:false}}async provision(_input:{operation:string;payload:unknown}){return{status:'PENDING_ADMIN' as const}}}
+export function getHostingProvider(){if(process.env.HOSTING_PROVIDER==='manual'||!process.env.HOSTING_PROVIDER)return new ManualHostingProvider();throw new Error('Configured hosting provider adapter is unavailable')}
+export function subscriptionPrice(plan:{monthlyPriceCents:number;annualPriceCents:number},cycle:string){return cycle==='ANNUAL'?plan.annualPriceCents:plan.monthlyPriceCents}
