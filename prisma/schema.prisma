@@ -279,6 +279,18 @@ enum SupportPriority {
   URGENT
 }
 
+enum EcosystemBillingPeriod {
+  MONTHLY
+  ANNUAL
+}
+
+enum EcosystemSubscriptionStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+}
+
 model User {
   id                      String                    @id @default(cuid())
   email                   String                    @unique
@@ -328,35 +340,36 @@ model UserRole {
 }
 
 model Business {
-  id                   String                  @id @default(cuid())
-  name                 String
-  storefrontSlug       String?                 @unique
-  storefrontPublished  Boolean                 @default(false)
-  logoUrl              String?
-  publicDescription    String?
-  openingHours         String?
-  serviceArea          String?
-  publicPhone          String?
-  publicEmail          String?
-  whatsappNumber       String?
-  orderUrl             String?
-  registrationNumber   String?                 @unique
-  address              String?
-  province             String?
-  verificationStatus   String                  @default("PENDING")
-  members              BusinessMember[]
-  stockRequests        StockRequest[]
-  products             Product[]
-  sales                Sale[]
-  expenses             Expense[]
-  jobPosts             JobPost[]
-  supplierProfile      SupplierProfile?
-  supplierOrders       SupplierOrder[]         @relation("BuyerBusiness")
-  supplierFavourites   SupplierFavourite[]
-  hostingRequests      HostingServiceRequest[]
-  hostingSubscriptions HostingSubscription[]
-  createdAt            DateTime                @default(now())
-  updatedAt            DateTime                @updatedAt
+  id                     String                  @id @default(cuid())
+  name                   String
+  storefrontSlug         String?                 @unique
+  storefrontPublished    Boolean                 @default(false)
+  logoUrl                String?
+  publicDescription      String?
+  openingHours           String?
+  serviceArea            String?
+  publicPhone            String?
+  publicEmail            String?
+  whatsappNumber         String?
+  orderUrl               String?
+  registrationNumber     String?                 @unique
+  address                String?
+  province               String?
+  verificationStatus     String                  @default("PENDING")
+  members                BusinessMember[]
+  stockRequests          StockRequest[]
+  products               Product[]
+  sales                  Sale[]
+  expenses               Expense[]
+  jobPosts               JobPost[]
+  supplierProfile        SupplierProfile?
+  supplierOrders         SupplierOrder[]         @relation("BuyerBusiness")
+  supplierFavourites     SupplierFavourite[]
+  hostingRequests        HostingServiceRequest[]
+  hostingSubscriptions   HostingSubscription[]
+  ecosystemSubscriptions EcosystemSubscription[]
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
 }
 
 model BusinessMember {
@@ -1215,4 +1228,56 @@ model SupportAction {
   createdAt DateTime       @default(now())
 
   @@index([ticketId, createdAt])
+}
+
+model EcosystemPlan {
+  id            String                  @id @default(cuid())
+  code          String                  @unique
+  name          String
+  description   String
+  priceCents    Int
+  billingPeriod EcosystemBillingPeriod
+  features      String
+  limits        String
+  active        Boolean                 @default(true)
+  sortOrder     Int                     @default(0)
+  subscriptions EcosystemSubscription[]
+  createdAt     DateTime                @default(now())
+  updatedAt     DateTime                @updatedAt
+}
+
+model EcosystemSubscription {
+  id                String                      @id @default(cuid())
+  business          Business                    @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  businessId        String
+  plan              EcosystemPlan               @relation(fields: [planId], references: [id], onDelete: Restrict)
+  planId            String
+  status            EcosystemSubscriptionStatus @default(PENDING_PAYMENT)
+  priceCents        Int
+  billingPeriod     EcosystemBillingPeriod
+  featuresSnapshot  String
+  limitsSnapshot    String
+  currentPeriodFrom DateTime?
+  currentPeriodTo   DateTime?
+  cancelledAt       DateTime?
+  invoices          EcosystemInvoice[]
+  createdAt         DateTime                    @default(now())
+  updatedAt         DateTime                    @updatedAt
+
+  @@index([businessId, status])
+}
+
+model EcosystemInvoice {
+  id             String                @id @default(cuid())
+  subscription   EcosystemSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  subscriptionId String
+  invoiceNumber  String                @unique
+  amountCents    Int
+  currency       String                @default("ZAR")
+  status         InvoiceStatus         @default(ISSUED)
+  dueAt          DateTime
+  paidAt         DateTime?
+  paymentId      String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
 }
