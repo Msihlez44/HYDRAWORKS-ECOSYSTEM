@@ -152,6 +152,38 @@ enum SupplierOrderStatus {
   DISPUTED
 }
 
+enum HostingRequestStatus {
+  REQUESTED
+  QUOTED
+  PAID
+  PROVISIONING
+  ACTIVE
+  SUSPENDED
+  CANCELLED
+  FAILED
+}
+
+enum BillingCycle {
+  MONTHLY
+  ANNUAL
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PAID
+  VOID
+  OVERDUE
+}
+
+enum ProvisionStatus {
+  PENDING_ADMIN
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
 model User {
   id                     String           @id @default(cuid())
   email                  String           @unique
@@ -189,22 +221,24 @@ model UserRole {
 }
 
 model Business {
-  id                 String              @id @default(cuid())
-  name               String
-  registrationNumber String?             @unique
-  address            String?
-  verificationStatus String              @default("PENDING")
-  members            BusinessMember[]
-  stockRequests      StockRequest[]
-  products           Product[]
-  sales              Sale[]
-  expenses           Expense[]
-  jobPosts           JobPost[]
-  supplierProfile    SupplierProfile?
-  supplierOrders     SupplierOrder[]     @relation("BuyerBusiness")
-  supplierFavourites SupplierFavourite[]
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
+  id                   String                  @id @default(cuid())
+  name                 String
+  registrationNumber   String?                 @unique
+  address              String?
+  verificationStatus   String                  @default("PENDING")
+  members              BusinessMember[]
+  stockRequests        StockRequest[]
+  products             Product[]
+  sales                Sale[]
+  expenses             Expense[]
+  jobPosts             JobPost[]
+  supplierProfile      SupplierProfile?
+  supplierOrders       SupplierOrder[]         @relation("BuyerBusiness")
+  supplierFavourites   SupplierFavourite[]
+  hostingRequests      HostingServiceRequest[]
+  hostingSubscriptions HostingSubscription[]
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 }
 
 model BusinessMember {
@@ -709,4 +743,119 @@ model SupplierOrderItem {
   productName    String
   quantity       Int
   unitPriceCents Int
+}
+
+model HostingPlan {
+  id                String                @id @default(cuid())
+  code              String                @unique
+  name              String
+  description       String
+  monthlyPriceCents Int
+  annualPriceCents  Int
+  storageGb         Int
+  websites          Int
+  mailboxes         Int
+  databases         Int
+  sslIncluded       Boolean               @default(true)
+  backupsIncluded   Boolean               @default(true)
+  active            Boolean               @default(true)
+  sortOrder         Int                   @default(0)
+  subscriptions     HostingSubscription[]
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+}
+
+model HostingServiceRequest {
+  id                String               @id @default(cuid())
+  business          Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  businessId        String
+  serviceType       String
+  domainName        String?
+  requirements      String?
+  status            HostingRequestStatus @default(REQUESTED)
+  quotedAmountCents Int?
+  adminNotes        String?
+  provisioningJobs  ProvisionJob[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model HostingSubscription {
+  id                String               @id @default(cuid())
+  business          Business             @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  businessId        String
+  plan              HostingPlan          @relation(fields: [planId], references: [id], onDelete: Restrict)
+  planId            String
+  billingCycle      BillingCycle
+  status            HostingRequestStatus @default(REQUESTED)
+  domainName        String?
+  providerReference String?
+  renewsAt          DateTime?
+  invoices          HostingInvoice[]
+  domains           HostedDomain[]
+  mailboxes         HostedMailbox[]
+  provisioningJobs  ProvisionJob[]
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+}
+
+model HostedDomain {
+  id                     String               @id @default(cuid())
+  subscription           HostingSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  subscriptionId         String?
+  businessId             String
+  domainName             String               @unique
+  registrationYears      Int                  @default(1)
+  registrationPriceCents Int
+  status                 HostingRequestStatus @default(REQUESTED)
+  providerReference      String?
+  expiresAt              DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+}
+
+model HostedMailbox {
+  id                String               @id @default(cuid())
+  subscription      HostingSubscription  @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId    String
+  localPart         String
+  domainName        String
+  displayName       String?
+  status            HostingRequestStatus @default(PROVISIONING)
+  providerReference String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([subscriptionId, localPart, domainName])
+}
+
+model HostingInvoice {
+  id             String              @id @default(cuid())
+  subscription   HostingSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Restrict)
+  subscriptionId String
+  invoiceNumber  String              @unique
+  amountCents    Int
+  currency       String              @default("ZAR")
+  status         InvoiceStatus       @default(ISSUED)
+  dueAt          DateTime
+  paidAt         DateTime?
+  paymentId      String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+}
+
+model ProvisionJob {
+  id             String                 @id @default(cuid())
+  request        HostingServiceRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId      String?
+  subscription   HostingSubscription?   @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  subscriptionId String?
+  operation      String
+  status         ProvisionStatus        @default(PENDING_ADMIN)
+  provider       String
+  payload        String?
+  result         String?
+  attempts       Int                    @default(0)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
 }
