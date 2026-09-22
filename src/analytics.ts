@@ -1,0 +1,6 @@
+import{z}from'zod';
+
+export const analyticsQuerySchema:any=z.object({from:z.string().datetime().optional(),to:z.string().datetime().optional(),province:z.string().min(2).max(80).optional(),platform:z.enum(['ALL','TUCKQUEST','KASIBIZ','MZANSIFIX','MZANSIWORK','HYDRAHOST']).default('ALL'),userType:z.enum(['CUSTOMER','BUSINESS_OWNER','DRIVER','SERVICE_PROVIDER','WORKER','SUPPLIER','STAFF','ADMIN','SUPER_ADMIN']).optional(),status:z.string().min(2).max(80).optional()}).superRefine((value,ctx)=>{if(value.from&&value.to&&new Date(value.from)>new Date(value.to))ctx.addIssue({code:'custom',message:'From date must be before to date',path:['from']})});
+export const metricPlatforms:Record<string,string[]>={tuckquestDeliveries:['TUCKQUEST'],businesses:['KASIBIZ'],tuckshops:['KASIBIZ'],mzansiFixJobs:['MZANSIFIX'],mzansiWorkAssignments:['MZANSIWORK'],subscriptions:['HYDRAHOST']};
+export function applyPlatformScope<T extends Record<string,number>>(metrics:T,platform:string):T{if(platform==='ALL')return metrics;return Object.fromEntries(Object.entries(metrics).map(([key,value])=>[key,metricPlatforms[key]&&!metricPlatforms[key].includes(platform)?0:value])) as T}
+export function money(cents:number|null|undefined){return Math.max(0,Math.round(cents??0))}
