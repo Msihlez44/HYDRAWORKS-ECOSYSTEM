@@ -198,6 +198,34 @@ enum MessageAttachmentType {
   DOCUMENT
 }
 
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum NotificationEvent {
+  NEW_DELIVERY_REQUEST
+  DRIVER_ASSIGNED
+  PURCHASE_APPROVAL
+  DELIVERY_ARRIVING
+  DELIVERY_COMPLETE
+  LOW_STOCK
+  SERVICE_QUOTE
+  JOB_MATCH
+  PAYMENT_RECEIVED
+  VERIFICATION_UPDATE
+  SUPPORT_REPLY
+}
+
+enum DeliveryAttemptStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
 model User {
   id                      String                    @id @default(cuid())
   email                   String                    @unique
@@ -223,6 +251,8 @@ model User {
   jobApplications         JobApplication[]
   conversationMemberships ConversationParticipant[]
   messagesSent            Message[]
+  notifications           Notification[]
+  notificationPreferences NotificationPreference[]
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
 }
@@ -930,4 +960,64 @@ model MessageAttachment {
   mimeType  String
   sizeBytes Int
   createdAt DateTime              @default(now())
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  event     NotificationEvent
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  active    Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([event, channel])
+}
+
+model NotificationPreference {
+  id        String              @id @default(cuid())
+  user      User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  channel   NotificationChannel
+  event     NotificationEvent
+  enabled   Boolean             @default(true)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@unique([userId, channel, event])
+}
+
+model Notification {
+  id                String                 @id @default(cuid())
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId            String
+  event             NotificationEvent
+  title             String
+  body              String
+  relatedEntityType String?
+  relatedEntityId   String?
+  readAt            DateTime?
+  archivedAt        DateTime?
+  attempts          NotificationDelivery[]
+  createdAt         DateTime               @default(now())
+
+  @@index([userId, readAt, createdAt])
+}
+
+model NotificationDelivery {
+  id             String                @id @default(cuid())
+  notification   Notification          @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  notificationId String
+  channel        NotificationChannel
+  status         DeliveryAttemptStatus @default(PENDING)
+  provider       String?
+  providerRef    String?
+  error          String?
+  attempts       Int                   @default(0)
+  lastAttemptAt  DateTime?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@unique([notificationId, channel])
 }
