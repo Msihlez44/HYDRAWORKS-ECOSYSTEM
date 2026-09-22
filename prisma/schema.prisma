@@ -47,6 +47,22 @@ enum StockRequestStatus {
   DISPUTED
 }
 
+enum InventoryMovementType {
+  PURCHASE
+  SALE
+  RETURN
+  ADJUSTMENT
+  DAMAGED
+  TRANSFER
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  EFT
+  HYDRA_WALLET
+}
+
 model User {
   id              String           @id @default(cuid())
   email           String           @unique
@@ -84,6 +100,9 @@ model Business {
   verificationStatus String           @default("PENDING")
   members            BusinessMember[]
   stockRequests      StockRequest[]
+  products           Product[]
+  sales              Sale[]
+  expenses           Expense[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 }
@@ -195,4 +214,75 @@ model Review {
   createdAt DateTime     @default(now())
 
   @@unique([requestId, authorId, subjectId])
+}
+
+model Product {
+  id                String              @id @default(cuid())
+  business          Business            @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId        String
+  sku               String
+  barcode           String?
+  name              String
+  category          String
+  costPriceCents    Int
+  sellingPriceCents Int
+  vatApplicable     Boolean             @default(false)
+  reorderLevel      Int                 @default(0)
+  supplier          String?
+  movements         InventoryMovement[]
+  saleItems         SaleItem[]
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@unique([businessId, sku])
+  @@unique([businessId, barcode])
+}
+
+model InventoryMovement {
+  id              String                @id @default(cuid())
+  product         Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productId       String
+  type            InventoryMovementType
+  quantityDelta   Int
+  unitCostCents   Int?
+  reference       String?
+  sourceRequestId String?
+  createdAt       DateTime              @default(now())
+
+  @@unique([sourceRequestId, productId])
+  @@index([productId, createdAt])
+}
+
+model Sale {
+  id            String        @id @default(cuid())
+  business      Business      @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  businessId    String
+  paymentMethod PaymentMethod
+  subtotalCents Int
+  discountCents Int           @default(0)
+  totalCents    Int
+  refundedAt    DateTime?
+  items         SaleItem[]
+  createdAt     DateTime      @default(now())
+}
+
+model SaleItem {
+  id             String  @id @default(cuid())
+  sale           Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  saleId         String
+  product        Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  productId      String
+  quantity       Int
+  unitPriceCents Int
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  business    Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  businessId  String
+  category    String
+  supplier    String?
+  amountCents Int
+  reference   String?
+  createdAt   DateTime @default(now())
 }
