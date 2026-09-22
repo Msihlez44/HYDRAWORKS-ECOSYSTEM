@@ -1,0 +1,26 @@
+import 'dotenv/config';
+import express from 'express';
+import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { PrismaClient } from '@prisma/client';
+import { z } from 'zod';
+import { hashPassword, loginSchema, readToken, registerSchema, signToken, verifyPassword } from './auth.js';
+const db=new PrismaClient(); const app=express();
+app.use(helmet({contentSecurityPolicy:false})); app.use(express.json({limit:'64kb'})); app.use(cookieParser());
+const asyncRoute=(fn:any)=>(req:any,res:any,next:any)=>Promise.resolve(fn(req,res,next)).catch(next);
+const current=asyncRoute(async(req:any,res:any,next:any)=>{const token=req.cookies.hydra_session;if(!token)return res.status(401).json({error:'Authentication required'});try{const claims=readToken(token);req.identity=claims;next();}catch{return res.status(401).json({error:'Session expired'});}});
+app.get('/api/health',(_req,res)=>res.json({status:'ok',service:'hydra-core'}));
+app.post('/api/auth/register',asyncRoute(async(req:any,res:any)=>{const input=registerSchema.parse(req.body);const exists=await db.user.findFirst({where:{OR:[{email:input.email.toLowerCase()},{phone:input.phone}]}});if(exists)return res.status(409).json({error:'Email or phone is already registered'});const user=await db.$transaction(async tx=>{const created=await tx.user.create({data:{email:input.email.toLowerCase(),phone:input.phone,firstName:input.firstName,lastName:input.lastName,passwordHash:await hashPassword(input.password),roles:{create:{role:input.role}}},include:{roles:true}});await tx.auditLog.create({data:{action:'USER_REGISTERED',entity:'User',entityId:created.id,userId:created.id}});return created;});const roles=user.roles.map(r=>r.role);res.cookie('hydra_session',signToken({sub:user.id,roles}),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:8*60*60*1000}).status(201).json({user:safe(user),roles});}));
+app.post('/api/auth/login',asyncRoute(async(req:any,res:any)=>{const input=loginSchema.parse(req.body);const user=await db.user.findUnique({where:{email:input.email.toLowerCase()},include:{roles:true}});if(!user||!await verifyPassword(input.password,user.passwordHash))return res.status(401).json({error:'Invalid email or password'});if(user.status!=='ACTIVE')return res.status(403).json({error:'Account is not active'});const roles=user.roles.map(r=>r.role);res.cookie('hydra_session',signToken({sub:user.id,roles}),{httpOnly:true,sameSite:'lax',secure:process.env.NODE_ENV==='production',maxAge:8*60*60*1000}).json({user:safe(user),roles});}));
+app.post('/api/auth/logout',(_req,res)=>res.clearCookie('hydra_session').status(204).end());
+app.get('/api/me',current,asyncRoute(async(req:any,res:any)=>{const user=await db.user.findUniqueOrThrow({where:{id:req.identity.sub},include:{roles:true,businesses:{include:{business:true}}}});res.json({user:safe(user),roles:user.roles.map(r=>r.role),businesses:user.businesses.map(m=>m.business)});}));
+const businessSchema=z.object({name:z.string().min(2).max(120),registrationNumber:z.string().max(50).optional(),address:z.string().max(240).optional()});
+app.post('/api/businesses',current,asyncRoute(async(req:any,res:any)=>{const input=businessSchema.parse(req.body);const business=await db.$transaction(async tx=>{const b=await tx.business.create({data:{...input,members:{create:{userId:req.identity.sub,role:'OWNER'}}}});await tx.auditLog.create({data:{action:'BUSINESS_CREATED',entity:'Business',entityId:b.id,userId:req.identity.sub}});return b;});res.status(201).json({business});}));
+app.get('/api/admin/overview',current,asyncRoute(async(req:any,res:any)=>{if(!req.identity.roles.some((r:string)=>['ADMIN','SUPER_ADMIN'].includes(r)))return res.status(403).json({error:'Administrator role required'});const [users,businesses,pending]=await Promise.all([db.user.count(),db.business.count(),db.business.count({where:{verificationStatus:'PENDING'}})]);res.json({users,businesses,pending});}));
+function safe(u:any){return{id:u.id,email:u.email,phone:u.phone,firstName:u.firstName,lastName:u.lastName,status:u.status};}
+const publicDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'public');app.use(express.static(publicDir));app.get('*',(_req,res)=>res.sendFile(path.join(publicDir,'index.html')));
+app.use((err:any,_req:any,res:any,_next:any)=>{console.error(err);if(err?.name==='ZodError')return res.status(400).json({error:'Please check the submitted fields',details:err.issues});res.status(500).json({error:'Unexpected server error'});});
+if(process.env.NODE_ENV!=='test')app.listen(Number(process.env.PORT||3000),()=>console.log(`HYDRA CORE running on ${process.env.PORT||3000}`));
+export {app};
