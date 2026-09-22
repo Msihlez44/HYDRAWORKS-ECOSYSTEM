@@ -13,5 +13,19 @@ const plans=[
   {code:'PREMIUM_BUSINESS',name:'Premium Business',description:'High-capacity business hosting for larger websites, teams and databases.',monthlyPriceCents:34900,annualPriceCents:376900,storageGb:100,websites:30,mailboxes:200,databases:40,sortOrder:3}
 ];
 for(const plan of plans)await db.hostingPlan.upsert({where:{code:plan.code},update:plan,create:plan});
+const notificationTemplates=[
+  ['NEW_DELIVERY_REQUEST','New delivery request','A new stock-delivery request is available.'],
+  ['DRIVER_ASSIGNED','Driver assigned','A driver has been assigned to request {{reference}}.'],
+  ['PURCHASE_APPROVAL','Purchase approval required','Approve the updated stock total for {{reference}}.'],
+  ['DELIVERY_ARRIVING','Delivery arriving','Your delivery for {{reference}} has arrived.'],
+  ['DELIVERY_COMPLETE','Delivery complete','Delivery {{reference}} was confirmed.'],
+  ['LOW_STOCK','Low stock','{{product}} has reached its reorder level.'],
+  ['SERVICE_QUOTE','New service quote','A provider submitted a quote for {{reference}}.'],
+  ['JOB_MATCH','New job match','A new {{title}} opportunity matches your worker profile.'],
+  ['PAYMENT_RECEIVED','Payment received','Payment of R{{amount}} was confirmed.'],
+  ['VERIFICATION_UPDATE','Verification updated','Your verification status is now {{status}}.'],
+  ['SUPPORT_REPLY','Support replied','There is a new reply on support ticket {{reference}}.']
+] as const;
+for(const [event,subject,body] of notificationTemplates)await db.notificationTemplate.upsert({where:{event_channel:{event,channel:'IN_APP'}},update:{subject,body,active:true},create:{event,channel:'IN_APP',subject,body}});
 console.log('Seeded administrator. Change the seed password before shared use.');
 await db.$disconnect();
