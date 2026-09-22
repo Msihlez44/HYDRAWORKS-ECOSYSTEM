@@ -1,0 +1,6 @@
+import{z}from'zod';
+export const supplierProfileSchema=z.object({businessId:z.string(),serviceAreas:z.array(z.string().min(2)).min(1),description:z.string().max(1000).optional()});
+export const supplierProductSchema=z.object({sku:z.string().min(1).max(60),name:z.string().min(2).max(120),category:z.string().min(2).max(80),wholesalePriceCents:z.number().int().positive(),minimumQuantity:z.number().int().positive(),availableQuantity:z.number().int().nonnegative(),active:z.boolean().default(true)});
+export const supplierOrderSchema=z.object({buyerId:z.string(),supplierId:z.string(),deliveryAddress:z.string().min(5).max(240),items:z.array(z.object({productId:z.string(),quantity:z.number().int().positive()})).min(1).max(100)});
+export function orderTotal(lines:{quantity:number;unitPriceCents:number;minimumQuantity:number;availableQuantity:number}[]){for(const line of lines){if(line.quantity<line.minimumQuantity)throw new Error('Minimum wholesale quantity not met');if(line.quantity>line.availableQuantity)throw new Error('Supplier stock unavailable')}return lines.reduce((sum,line)=>sum+line.quantity*line.unitPriceCents,0)}
+export function promotionPrice(priceCents:number,discountBasisPoints:number){if(discountBasisPoints<0||discountBasisPoints>10000)throw new Error('Invalid discount');return Math.round(priceCents*(10000-discountBasisPoints)/10000)}
