@@ -9,7 +9,7 @@ Implemented the GitHub foundation and the first HYDRA CORE/HYDRA ID vertical sli
 3. Run `npx prisma generate && npm run db:push && npm run db:seed`.
 4. Run `npm run dev` and open the Vite URL.
 
-The seeded administrator is `admin@hydraworks.co.za`. Its initial password comes from `SEED_ADMIN_PASSWORD` or the local development fallback; change it immediately and never use the fallback in a shared environment.
+The seeded administrator is `admin@hydraworks.co.za`. Set a unique `SEED_ADMIN_PASSWORD` of at least 12 characters before running the seed command, and change it after first use.
 
 ## Acceptance status
 
