@@ -286,6 +286,7 @@ model User {
   passwordHash            String
   firstName               String
   lastName                String
+  province                String?
   status                  AccountStatus             @default(ACTIVE)
   roles                   UserRole[]
   businesses              BusinessMember[]
@@ -331,6 +332,7 @@ model Business {
   name                 String
   registrationNumber   String?                 @unique
   address              String?
+  province             String?
   verificationStatus   String                  @default("PENDING")
   members              BusinessMember[]
   stockRequests        StockRequest[]
