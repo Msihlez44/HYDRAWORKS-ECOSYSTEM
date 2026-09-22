@@ -1,0 +1,2 @@
+import{supportedLocales,useI18n}from'./i18n';
+export function LanguageSelector(){const{locale,setLocale,t,isFallback}=useI18n();return <div className="language-selector"><label>{t('language.label')}<select value={locale} onChange={e=>setLocale(e.target.value as any)}>{supportedLocales.map(language=><option value={language.code} key={language.code}>{language.name}{language.ready?'':' · review pending'}</option>)}</select></label>{isFallback&&<small>{t('language.reviewPending')}</small>}</div>}
