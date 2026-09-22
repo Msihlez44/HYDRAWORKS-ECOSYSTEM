@@ -89,25 +89,44 @@ enum PaymentStatus {
   REFUNDED
 }
 
+enum ServiceJobStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  ON_THE_WAY
+  ARRIVED
+  WORK_STARTED
+  COMPLETED
+  CUSTOMER_CONFIRMED
+  PAYMENT_RELEASED
+  REVIEWED
+  CANCELLED
+  DISPUTED
+}
+
 model User {
-  id              String           @id @default(cuid())
-  email           String           @unique
-  phone           String           @unique
-  passwordHash    String
-  firstName       String
-  lastName        String
-  status          AccountStatus    @default(ACTIVE)
-  roles           UserRole[]
-  businesses      BusinessMember[]
-  sessions        Session[]
-  auditLogs       AuditLog[]
-  driverProfile   DriverProfile?
-  drivingRequests StockRequest[]   @relation("AssignedDriver")
-  reviewsWritten  Review[]         @relation("ReviewAuthor")
-  reviewsReceived Review[]         @relation("ReviewSubject")
-  wallet          Wallet?
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  id                     String           @id @default(cuid())
+  email                  String           @unique
+  phone                  String           @unique
+  passwordHash           String
+  firstName              String
+  lastName               String
+  status                 AccountStatus    @default(ACTIVE)
+  roles                  UserRole[]
+  businesses             BusinessMember[]
+  sessions               Session[]
+  auditLogs              AuditLog[]
+  driverProfile          DriverProfile?
+  drivingRequests        StockRequest[]   @relation("AssignedDriver")
+  reviewsWritten         Review[]         @relation("ReviewAuthor")
+  reviewsReceived        Review[]         @relation("ReviewSubject")
+  wallet                 Wallet?
+  serviceProvider        ServiceProvider?
+  serviceRequests        ServiceRequest[] @relation("ServiceCustomer")
+  serviceReviewsWritten  ServiceReview[]  @relation("ServiceReviewAuthor")
+  serviceReviewsReceived ServiceReview[]  @relation("ServiceReviewSubject")
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
 }
 
 model UserRole {
@@ -368,4 +387,97 @@ model CommissionRule {
   updatedAt             DateTime @updatedAt
 
   @@unique([service, active])
+}
+
+model ServiceProvider {
+  id                 String             @id @default(cuid())
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String             @unique
+  businessName       String?
+  categories         String
+  skills             String
+  experienceYears    Int
+  description        String
+  serviceRadiusKm    Int
+  latitude           Float?
+  longitude          Float?
+  portfolioRefs      String?
+  verificationStatus VerificationStatus @default(PENDING)
+  quotes             ServiceQuote[]
+  assignedRequests   ServiceRequest[]
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model ServiceRequest {
+  id              String              @id @default(cuid())
+  customer        User                @relation("ServiceCustomer", fields: [customerId], references: [id], onDelete: Restrict)
+  customerId      String
+  category        String
+  description     String
+  photoRefs       String?
+  address         String
+  latitude        Float?
+  longitude       Float?
+  preferredDate   DateTime?
+  urgency         String
+  budgetCents     Int?
+  status          ServiceJobStatus    @default(REQUESTED)
+  provider        ServiceProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  providerId      String?
+  acceptedQuoteId String?             @unique
+  beforeEvidence  String?
+  afterEvidence   String?
+  completionNotes String?
+  paymentHoldRef  String?
+  quotes          ServiceQuote[]
+  transitions     ServiceTransition[]
+  reviews         ServiceReview[]
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  @@index([category, status])
+}
+
+model ServiceQuote {
+  id                    String          @id @default(cuid())
+  request               ServiceRequest  @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId             String
+  provider              ServiceProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  providerId            String
+  labourCents           Int
+  materialsCents        Int
+  calloutCents          Int
+  otherFeesCents        Int
+  totalCents            Int
+  notes                 String?
+  estimatedDurationMins Int
+  createdAt             DateTime        @default(now())
+
+  @@unique([requestId, providerId])
+}
+
+model ServiceTransition {
+  id        String            @id @default(cuid())
+  request   ServiceRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  fromState ServiceJobStatus?
+  toState   ServiceJobStatus
+  actorId   String
+  createdAt DateTime          @default(now())
+}
+
+model ServiceReview {
+  id        String         @id @default(cuid())
+  request   ServiceRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  author    User           @relation("ServiceReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  subject   User           @relation("ServiceReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+  rating    Int
+  comment   String?
+  createdAt DateTime       @default(now())
+
+  @@unique([requestId, authorId])
 }
