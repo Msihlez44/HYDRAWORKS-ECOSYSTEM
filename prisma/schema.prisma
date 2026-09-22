@@ -25,20 +25,46 @@ enum AccountStatus {
   PENDING
 }
 
+enum VerificationStatus {
+  PENDING
+  UNDER_REVIEW
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum StockRequestStatus {
+  DRAFT
+  SEARCHING_DRIVER
+  DRIVER_ASSIGNED
+  SHOPPING
+  AWAITING_APPROVAL
+  PURCHASED
+  DELIVERING
+  ARRIVED
+  DELIVERED
+  CANCELLED
+  DISPUTED
+}
+
 model User {
-  id           String           @id @default(cuid())
-  email        String           @unique
-  phone        String           @unique
-  passwordHash String
-  firstName    String
-  lastName     String
-  status       AccountStatus    @default(ACTIVE)
-  roles        UserRole[]
-  businesses   BusinessMember[]
-  sessions     Session[]
-  auditLogs    AuditLog[]
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
+  id              String           @id @default(cuid())
+  email           String           @unique
+  phone           String           @unique
+  passwordHash    String
+  firstName       String
+  lastName        String
+  status          AccountStatus    @default(ACTIVE)
+  roles           UserRole[]
+  businesses      BusinessMember[]
+  sessions        Session[]
+  auditLogs       AuditLog[]
+  driverProfile   DriverProfile?
+  drivingRequests StockRequest[]   @relation("AssignedDriver")
+  reviewsWritten  Review[]         @relation("ReviewAuthor")
+  reviewsReceived Review[]         @relation("ReviewSubject")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 }
 
 model UserRole {
@@ -57,6 +83,7 @@ model Business {
   address            String?
   verificationStatus String           @default("PENDING")
   members            BusinessMember[]
+  stockRequests      StockRequest[]
   createdAt          DateTime         @default(now())
   updatedAt          DateTime         @updatedAt
 }
@@ -90,4 +117,82 @@ model AuditLog {
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   userId    String?
   createdAt DateTime @default(now())
+}
+
+model DriverProfile {
+  id                 String             @id @default(cuid())
+  user               User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId             String             @unique
+  address            String
+  licenceNumber      String             @unique
+  licenceExpiry      DateTime
+  vehicleMake        String
+  vehicleModel       String
+  registration       String             @unique
+  vehicleType        String
+  vehicleColour      String
+  vehiclePhotoUrl    String?
+  documentRefs       String?
+  paymentProfileRef  String?
+  verificationStatus VerificationStatus @default(PENDING)
+  isOnline           Boolean            @default(false)
+  latitude           Float?
+  longitude          Float?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+}
+
+model StockRequest {
+  id                  String             @id @default(cuid())
+  business            Business           @relation(fields: [businessId], references: [id], onDelete: Restrict)
+  businessId          String
+  supplierName        String
+  notes               String?
+  deliveryAddress     String
+  allowAlternative    Boolean            @default(false)
+  estimatedTotalCents Int                @default(0)
+  actualTotalCents    Int?
+  status              StockRequestStatus @default(DRAFT)
+  driver              User?              @relation("AssignedDriver", fields: [driverId], references: [id], onDelete: SetNull)
+  driverId            String?
+  receiptUrl          String?
+  ownerApprovedAt     DateTime?
+  deliveryPinHash     String?
+  items               StockRequestItem[]
+  reviews             Review[]
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+}
+
+model StockRequestItem {
+  id                 String       @id @default(cuid())
+  request            StockRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId          String
+  productName        String
+  quantity           Int
+  estimatedUnitCents Int
+  actualUnitCents    Int?
+  unavailable        Boolean      @default(false)
+  alternative        String?
+}
+
+model PricingSetting {
+  key        String   @id
+  valueCents Int
+  updatedAt  DateTime @updatedAt
+}
+
+model Review {
+  id        String       @id @default(cuid())
+  request   StockRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  requestId String
+  author    User         @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  authorId  String
+  subject   User         @relation("ReviewSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  subjectId String
+  rating    Int
+  comment   String?
+  createdAt DateTime     @default(now())
+
+  @@unique([requestId, authorId, subjectId])
 }
