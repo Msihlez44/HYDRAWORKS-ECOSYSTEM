@@ -4,6 +4,7 @@ COPY package.json package-lock.json ./
 RUN npm ci
 COPY tsconfig.json vite.config.ts ./
 COPY prisma ./prisma
+COPY scripts ./scripts
 COPY src ./src
 COPY web ./web
 RUN npx prisma generate && npm run build && npm prune --omit=dev
@@ -14,6 +15,7 @@ WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/scripts ./scripts
 COPY package.json ./package.json
 USER node
 EXPOSE 3000
