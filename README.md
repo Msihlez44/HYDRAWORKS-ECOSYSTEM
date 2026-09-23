@@ -9,7 +9,7 @@ HYDRA WORKS is a full-stack TypeScript application for HYDRA ID, Tuckquest, Kasi
 - Node.js 22 LTS (the version used by CI)
 - npm 10 or newer
 - Git
-- SQLite for the default local setup; no separately installed database server is required
+- Docker with Compose for the default local PostgreSQL 16 database, or access to another PostgreSQL instance
 
 ## Install from a fresh clone
 
@@ -32,7 +32,7 @@ Use independent output for `JWT_SECRET`, `PAYMENT_WEBHOOK_SECRET`, and a passwor
 
 | Variable | Required | Purpose |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | Prisma connection; local default is `file:./dev.db`, relative to `prisma/` |
+| `DATABASE_URL` | Yes | PostgreSQL connection string; Railway supplies this through a private service reference |
 | `JWT_SECRET` | Yes | At least 32 random characters used to sign authentication tokens |
 | `SEED_ADMIN_PASSWORD` | For seed | Initial administrator password, at least 12 characters |
 | `PORT` | No | Express port; defaults to `3000` |
@@ -55,11 +55,12 @@ For a new local database:
 
 ```bash
 npx prisma generate
+npm run db:start
 npm run db:setup
 SEED_ADMIN_PASSWORD='your-secure-local-password' npm run db:seed
 ```
 
-`db:setup` prepares the local SQLite file and creates its schema from `prisma/schema.prisma`. Schema changes must be reviewed and converted into a named development migration with `npm run db:migrate -- --name <change>` before a production release. Production applies committed migrations non-interactively with `npm run db:deploy`. Back up data before any production migration.
+`db:start` starts PostgreSQL 16 from `compose.yaml`. `db:setup` applies committed migrations. Schema changes must be converted into a named development migration with `npm run db:migrate -- --name <change>` before a production release. Railway applies committed migrations non-interactively before starting the new release. Back up data before any production migration.
 
 The seed is repeatable: it upserts one administrator, the three HydraHost packages, and notification templates. It does not print or store a default password in source control.
 
@@ -97,11 +98,11 @@ npm run backup
 npm run restore:verify -- backups/<timestamp>
 ```
 
-The backup command currently supports the repository's SQLite configuration. Read `docs/BACKUP-RECOVERY.md` before scheduling or restoring.
+The legacy file-backup command supports SQLite only. Railway PostgreSQL must use Railway database backups plus an independently tested off-site export. Read `docs/BACKUP-RECOVERY.md` before scheduling or restoring.
 
 ## Troubleshooting
 
-- **Prisma cannot open the database:** confirm `.env` exists and `DATABASE_URL="file:./dev.db"`; then run `npx prisma generate` and `npm run db:setup`.
+- **Prisma cannot reach PostgreSQL:** confirm Docker is running, use `npm run db:start`, and verify the `.env` connection string before `npm run db:setup`.
 - **Seed rejects the password:** supply `SEED_ADMIN_PASSWORD` with 12 or more characters in the shell invocation or `.env`.
 - **Port already in use:** set another `PORT` and ensure the configured origin matches.
 - **401 after a restart:** sign in again and confirm `JWT_SECRET` did not change unexpectedly.
