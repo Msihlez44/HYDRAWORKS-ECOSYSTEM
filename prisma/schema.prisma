@@ -328,6 +328,8 @@ model User {
   supportPartyMemberships SupportTicketParty[]
   createdAt               DateTime                  @default(now())
   updatedAt               DateTime                  @updatedAt
+
+  @@index([status, province, createdAt])
 }
 
 model UserRole {
@@ -370,6 +372,8 @@ model Business {
   ecosystemSubscriptions EcosystemSubscription[]
   createdAt              DateTime                @default(now())
   updatedAt              DateTime                @updatedAt
+
+  @@index([province, verificationStatus, createdAt])
 }
 
 model BusinessMember {
@@ -505,6 +509,7 @@ model Product {
 
   @@unique([businessId, sku])
   @@unique([businessId, barcode])
+  @@index([businessId, category, createdAt])
 }
 
 model InventoryMovement {
@@ -597,6 +602,9 @@ model PaymentRecord {
   metadata          String?
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
+
+  @@index([status, createdAt])
+  @@index([relatedEntityType, relatedEntityId])
 }
 
 model CommissionRule {
@@ -1280,4 +1288,6 @@ model EcosystemInvoice {
   paymentId      String?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
+
+  @@index([status, dueAt])
 }
