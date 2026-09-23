@@ -86,7 +86,7 @@ npm run build
 The build emits the server to `dist/` and the browser bundle to `dist/public/`. Run it with:
 
 ```bash
-NODE_ENV=production node dist/server.js
+NODE_ENV=production node dist/src/server.js
 ```
 
 Before production use, configure a supported production database, durable uploads, TLS reverse proxy, email/payment providers, backups, and monitoring. Consult the deployment and recovery documents in `docs/`.
