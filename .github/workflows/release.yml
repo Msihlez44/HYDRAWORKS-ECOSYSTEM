@@ -1,0 +1,37 @@
+name: Production release artifact
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-release
+  cancel-in-progress: false
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma format --check
+      - run: npx prisma generate
+      - run: npm test
+      - run: npm run build
+      - name: Create immutable release bundle
+        run: tar -czf hydraworks-release.tgz dist package.json package-lock.json prisma scripts
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hydraworks-${{ github.sha }}
+          path: hydraworks-release.tgz
+          if-no-files-found: error
+          retention-days: 30
