@@ -6,11 +6,11 @@ HYDRA WORKS requires a persistent Node.js process, server-side API, database, wr
 
 - Node.js 22, npm, and a hosting account that permits a continuously running Node application
 - HTTPS-capable reverse proxy and DNS control
-- A production database supported by the deployed Prisma schema; the current repository is configured for SQLite and requires a single-instance host with durable disk
+- PostgreSQL 16 or a compatible managed PostgreSQL service
 - Durable, non-public volumes for the database, `UPLOAD_DIR`, and backup destinations
 - SMTP/email, payment, maps, monitoring, and off-site backup providers configured separately
 
-For horizontal scaling or managed SQL, first migrate the Prisma datasource and schema to PostgreSQL in a reviewed change. Do not put SQLite on ephemeral or multi-writer network storage.
+Use a private database network where the provider supports it, require TLS on public database connections, and restrict credentials to the application service.
 
 ## Option A: Node.js-capable cPanel
 
@@ -43,7 +43,7 @@ Issue certificates for every active hostname. Redirect unused aliases to the can
 ## Database, files, and secrets
 
 - Stop writes and take a verified backup before schema deployment.
-- Restrict the SQLite file to the service account and use durable local block storage.
+- Restrict PostgreSQL network access and credentials to the application service and backup operator.
 - Keep uploads private; serve authorised files through the application rather than a public directory.
 - Supply `JWT_SECRET`, webhook secrets, admin seed password, and provider credentials from cPanel/platform secrets or a root-readable service environment file.
 - Rotate secrets after any suspected disclosure. Changing `JWT_SECRET` invalidates existing authentication tokens.
