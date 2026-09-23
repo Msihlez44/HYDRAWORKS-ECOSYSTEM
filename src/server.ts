@@ -3,7 +3,6 @@ import express from 'express';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { PrismaClient } from '@prisma/client';
 import { z } from 'zod';
 import { hashPassword, loginSchema, readToken, registerSchema, signToken, tokenDigest, verifyPassword } from './auth.js';
@@ -157,7 +156,7 @@ async function requireBusiness(businessId:string,userId:string){const member=awa
 async function ownDriverRequest(id:string,userId:string){const request=await db.stockRequest.findFirst({where:{id,driverId:userId},include:{items:true}});if(!request)throw Object.assign(new Error('Assigned request not found'),{status:404});return request}
 async function ownBusinessRequest(id:string,userId:string){const request=await db.stockRequest.findFirst({where:{id,business:{members:{some:{userId}}}},include:{items:true}});if(!request)throw Object.assign(new Error('Business request not found'),{status:404});return request}
 function safe(u:any){return{id:u.id,email:u.email,phone:u.phone,firstName:u.firstName,lastName:u.lastName,status:u.status};}
-const publicDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'public');app.use(express.static(publicDir));app.use((_req,res)=>res.sendFile(path.join(publicDir,'index.html')));
+const publicDir=path.resolve(process.cwd(),'dist','public');app.use(express.static(publicDir));app.use((_req,res)=>res.sendFile(path.join(publicDir,'index.html')));
 app.use((err:any,_req:any,res:any,_next:any)=>{console.error(err);if(err?.name==='ZodError')return res.status(400).json({error:'Please check the submitted fields',details:err.issues});res.status(err?.status||500).json({error:err?.status?err.message:'Unexpected server error'});});
 if(process.env.NODE_ENV!=='test')app.listen(Number(process.env.PORT||3000),()=>console.log(`HYDRA CORE running on ${process.env.PORT||3000}`));
 export {app};
