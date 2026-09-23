@@ -12,7 +12,7 @@ The `production` GitHub Environment should require approval and restrict deploym
 
 - Store secrets (`JWT_SECRET`, webhook/provider credentials, database access) in GitHub Environment secrets or the host's secret store.
 - Set `APP_ORIGIN` to the final HTTPS origin and `NODE_ENV=production`; never expose secrets through Vite-prefixed variables.
-- Attach durable private volumes for SQLite, `UPLOAD_DIR`, and local backup staging. For multiple replicas, migrate and test the Prisma schema on managed PostgreSQL before deployment.
+- Use Railway PostgreSQL through its private `DATABASE_URL`. Attach durable private storage or an object-storage bucket for uploads and backup staging.
 - Terminate TLS at the host load balancer/reverse proxy and redirect HTTP to HTTPS.
 - Run the Node server as the service command, not as a static site.
 - Forward structured stdout/stderr to retained logs and configure uptime/error alerts.
@@ -27,4 +27,4 @@ After deployment, verify the real URL, security headers, registration/sign-in, a
 
 ## Container notes
 
-The image intentionally contains no `.env`, database, uploads, or backup data. Mount writable durable paths and inject environment variables at runtime. Because the runtime uses the unprivileged `node` user, volumes must be owned by the matching container UID. The current SQLite configuration is appropriate only for one application writer on durable local storage.
+The image intentionally contains no `.env`, database, uploads, or backup data. Inject variables at runtime and keep PostgreSQL on its managed private service. Because the runtime uses the unprivileged `node` user, any attached upload volume must be owned by the matching container UID.
